@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Free Fire Lite 3D - Battle Royale</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #000;
+        }
+        /* UI HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 12px;
+        }
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+        }
+        .player-stats {
+            background: rgba(0, 0, 0, 0.6);
+            border-left: 4px solid #ff9900;
+            padding: 8px 12px;
+            border-radius: 4px;
+            color: #fff;
+            backdrop-filter: blur(4px);
+        }
+        .player-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffcc00;
+            text-transform: uppercase;
+        }
+        .rank-badge {
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        .hp-bar-bg {
+            width: 140px;
+            height: 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .hp-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff3333, #00ff66);
+            transition: width 0.1s ease;
+        }
+        .match-info {
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+            color: #fff;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            gap: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .match-info span {
+            color: #ff9900;
+        }
+        .minimap-wrapper {
+            position: relative;
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 2px solid #ff9900;
+            overflow: hidden;
+            background: rgba(20, 30, 20, 0.8);
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+        #minimapCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        .crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            pointer-events: none;
+        }
+        .crosshair::before, .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        .crosshair::before { top: 7px; left: 0; width: 16px; height: 2px; }
+        .crosshair::after { top: 0; left: 7px; width: 2px; height: 16px; }
+
+        /* Scope overlay */
+        #scope-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, transparent 30%, black 70%);
+            display: none;
+            pointer-events: none;
+        }
+        #scope-overlay::before, #scope-overlay::after {
+            content: '';
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+        }
+        #scope-overlay::before { top: 50%; left: 0; width: 100%; height: 1px; }
+        #scope-overlay::after { top: 0; left: 50%; width: 1px; height: 100%; }
+
+        /* Controls */
+        .touch-controls {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: auto;
+        }
+        .btn {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 12px;
+            touch-action: manipulation;
+            user-select: none;
+            backdrop-filter: blur(2px);
+        }
+        .btn:active {
+            background: rgba(255, 153, 0, 0.6);
+            transform: scale(0.95);
+        }
+        #btn-fire { right: 80px; bottom: 40px; width: 65px; height: 65px; background: rgba(255, 50, 50, 0.5); border-color: #ff5555; }
+        #btn-ads { right: 165px; bottom: 30px; width: 50px; height: 50px; }
+        #btn-reload { right: 145px; bottom: 100px; width: 45px; height: 45px; }
+        #btn-weapon { right: 85px; bottom: 120px; width: 50px; height: 50px; background: rgba(255, 153, 0, 0.4); }
+        #btn-jump { right: 25px; bottom: 100px; width: 48px; height: 48px; }
+
+        /* Weapon Select UI */
+        .weapon-hud {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 20px;
+            padding: 5px 15px;
+            display: flex;
+            gap: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            font-size: 13px;
+        }
+        .weapon-name { color: #ffcc00; font-weight: bold; }
+        
+        /* Kill Log */
+        #kill-feed {
+            position: absolute;
+            top: 70px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            pointer-events: none;
+        }
+        .kill-msg {
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border-left: 3px solid #ff3333;
+        }
+
+        /* Screen Damage Effect */
+        #damage-flash {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,0,0,0.25);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s ease-out;
+        }
+
+        /* Win/Loss Screen */
+        #game-over-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            z-index: 99;
+        }
+        #game-over-title {
+            font-size: 42px;
+            font-weight: 900;
+            color: #ffcc00;
+            text-shadow: 0 0 20px rgba(255,204,0,0.6);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #ff9900;
+            border: none;
+            color: #000;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 25px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="renderCanvas"></canvas>
+        <div id="scope-overlay"></div>
+        <div id="damage-flash"></div>
+
+        <!-- HUD Layer -->
+        <div id="hud">
+            <div class="hud-top">
+                <div class="player-stats">
+                    <div class="player-name">SOBREVIVENTE</div>
+                    <div class="rank-badge" id="rankText">Bronze I (0 RP)</div>
+                    <div class="hp-bar-bg">
+                        <div class="hp-bar-fill" id="hpFill"></div>
+                    </div>
+                </div>
+
+                <div class="match-info">
+                    <div>VIVOS: <span id="aliveCount">10</span></div>
+                    <div>ABATES: <span id="killCount">0</span></div>
+                </div>
+
+                <div class="minimap-wrapper">
+                    <canvas id="minimapCanvas" width="90" height="90"></canvas>
+                </div>
+            </div>
+
+            <div id="kill-feed"></div>
+
+            <div class="weapon-hud">
+                <span class="weapon-name" id="weaponName">AK-47</span>
+                <span id="ammoText">30 / 120</span>
+            </div>
+        </div>
+
+        <div class="crosshair"></div>
+
+        <!-- Controles Touch Nativos -->
+        <div class="touch-controls" id="touchControls">
+            <div class="btn" id="btn-fire">ATIRAR</div>
+            <div class="btn" id="btn-ads">MIRA</div>
+            <div class="btn" id="btn-reload">REC</div>
+            <div class="btn" id="btn-weapon">ARMA</div>
+            <div class="btn" id="btn-jump">PULAR</div>
+        </div>
+
+        <!-- Tela de Fim de Jogo -->
+        <div id="game-over-screen">
+            <div id="game-over-title
